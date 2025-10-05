@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Loan Helper — Calculator</title>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --muted:#9aa4b2; --accent:#4f46e5; --glass: rgba(255,255,255,0.03);
+      --success: #10b981; --danger:#ef4444; --card-radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:0;background:linear-gradient(180deg,#071029 0%, #071827 100%);color:#e6eef6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
+    .app{width:100%;max-width:900px}
+    header{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+    .logo{width:58px;height:58px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#06b6d4);display:flex;align-items:center;justify-content:center;font-weight:700;color:white;font-size:20px;box-shadow:0 6px 20px rgba(79,70,229,0.18)}
+    h1{font-size:20px;margin:0}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:18px;border-radius:var(--card-radius);box-shadow:0 6px 18px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+
+    .controls label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    .controls .row{display:flex;gap:10px;margin-bottom:12px}
+    input[type="number"], select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:var(--accent);border:none;color:white;cursor:pointer}
+    .muted{color:var(--muted);font-size:13px}
+
+    .result{display:flex;flex-direction:column;gap:12px}
+    .big{font-size:22px;font-weight:700}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:8px;border-bottom:1px dashed rgba(255,255,255,0.03);text-align:left}
+
+    .small{font-size:12px;color:var(--muted)}
+
+    footer{margin-top:14px;color:var(--muted);font-size:12px;text-align:center}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="logo">LA</div>
+      <div>
+        <h1>Loan Helper</h1>
+        <p class="lead">Simple Loan Calculator</p>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="controls">
+        <label>Loan Amount (principal)</label>
+        <input id="amount" type="number" min="0" value="250000" />
+
+        <div class="row">
+          <div style="flex:1">
+            <label>Annual Interest Rate (%)</label>
+            <input id="rate" type="number" step="0.01" min="0" value="7.5" />
+          </div>
+          <div style="width:120px">
+            <label>Term (years)</label>
+            <input id="years" type="number" min="1" value="15" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div style="flex:1">
+            <label>Payment Frequency</label>
+            <select id="freq">
+              <option value="12">Monthly</option>
+              <option value="26">Bi-weekly</option>
+              <option value="52">Weekly</option>
+              <option value="1">Yearly</option>
+            </select>
+          </div>
+          <div style="width:140px">
+            <label>Extra Payment (per period)</label>
+            <input id="extra" type="number" min="0" value="0" />
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+          <button id="calc" class="btn">Calculate</button>
+          <button id="amortToggle" class="btn" style="background:#1f2937">Toggle Amortization</button>
+          <div style="flex:1;text-align:right" class="small muted">Results update live</div>
+        </div>
+      </div>
+
+      <hr style="margin:14px 0;border:none;border-top:1px solid rgba(255,255,255,0.03)">
+
+      <div class="result">
+        <div>
+          <div class="small">Estimated</div>
+          <div class="big" id="monthly">₹ 0.00</div>
+          <div class="small muted">Total paid — <span id="totalPaid">₹ 0.00</span> • Total interest — <span id="totalInterest">₹ 0.00</span></div>
+        </div>
+
+        <div id="amortTableWrap" style="display:none">
+          <h3 class="small" style="margin-bottom:8px">Amortization schedule (first 100 rows shown)</h3>
+          <div style="max-height:300px;overflow:auto;border-radius:8px;border:1px solid rgba(255,255,255,0.02)">
+            <table id="amortTable">
+              <thead><tr><th>#</th><th>Payment</th><th>Principal</th><th>Interest</th><th>Remaining</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div>Built for you — all calculations run locally in your browser.</div>
+    </footer>
+  </main>
+
+  <script>
+    const el = id => document.getElementById(id);
+    const fmt = n => new Intl.NumberFormat('en-IN',{maximumFractionDigits:2}).format(n);
+
+    function monthlyPayment(P, rate, years, freq){
+      const r = (rate/100)/freq;
+      const n = years*freq;
+      if(r===0) return P/n;
+      return (P*r)/(1-Math.pow(1+r,-n));
+    }
+
+    function generateAmort(P, rate, years, freq, extra=0, maxRows=10000){
+      const schedule=[]; let bal=P; const r=(rate/100)/freq; const pay=monthlyPayment(P,rate,years,freq); let i=0;
+      while(bal>0.0001 && i<maxRows){
+        i++; const interest=bal*r; let principal=pay-interest+Number(extra);
+        if(principal>bal) principal=bal; bal=Math.max(0,bal-principal);
+        schedule.push({period:i,payment:pay+extra,principal,interest,remaining:bal});
+      }
+      return schedule;
+    }
+
+    function renderResults(){
+      const P=Number(el('amount').value)||0,rate=Number(el('rate').value)||0,years=Number(el('years').value)||0,freq=Number(el('freq').value)||12,extra=Number(el('extra').value)||0;
+      const pay=monthlyPayment(P,rate,years,freq)+extra, n=years*freq, totalPaid=pay*n, totalInterest=totalPaid-P;
+      el('monthly').textContent='₹ '+fmt(pay);
+      el('totalPaid').textContent='₹ '+fmt(totalPaid);
+      el('totalInterest').textContent='₹ '+fmt(Math.max(0,totalInterest));
+      if(el('amortTableWrap').style.display!=='none'){
+        const sched=generateAmort(P,rate,years,freq,extra,1000);const tbody=el('amortTable').querySelector('tbody');tbody.innerHTML='';
+        for(let i=0;i<Math.min(sched.length,100);i++){
+          const r=sched[i];
+          const tr=document.createElement('tr');
+          tr.innerHTML=`<td>${r.period}</td><td>₹ ${fmt(r.payment)}</td><td>₹ ${fmt(r.principal)}</td><td>₹ ${fmt(r.interest)}</td><td>₹ ${fmt(r.remaining)}</td>`;
+          tbody.appendChild(tr);
+        }
+      }
+    }
+
+    el('calc').addEventListener('click',renderResults);
+    el('amortToggle').addEventListener('click',()=>{const wrap=el('amortTableWrap');wrap.style.display=wrap.style.display==='none'?'block':'none';renderResults();});
+
+    renderResults();
+  </script>
+</body>
+</html>

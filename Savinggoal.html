@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Savings App</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#3b82f6;--muted:#94a3b8;--success:#10b981}
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    body{background:linear-gradient(180deg,#071029 0%, #071a2f 60%);color:#e6eef8;padding:28px;box-sizing:border-box}
+    .app{max-width:980px;margin:0 auto;display:grid;grid-template-columns:1fr 360px;gap:20px}
+    header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between}
+    h1{font-size:20px;margin:0}
+    .sub{color:var(--muted);font-size:13px}
+
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:18px;border-radius:12px;box-shadow:0 6px 20px rgba(2,6,23,0.6);}
+
+    .main{display:flex;flex-direction:column;gap:18px}
+    .balance{display:flex;gap:14px;align-items:center}
+    .balance .big{font-size:28px;font-weight:700}
+    .stats{display:flex;gap:12px}
+    .stat{padding:12px;border-radius:10px;background:rgba(255,255,255,0.01);min-width:120px}
+    .stat .num{font-weight:700}
+
+    form{display:grid;grid-template-columns:1fr 120px 110px;gap:8px;align-items:center}
+    label{font-size:12px;color:var(--muted)}
+    input,select{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:10px;border-radius:8px;color:inherit}
+    .btn{background:var(--accent);border:none;padding:10px 14px;border-radius:10px;color:white;cursor:pointer}
+    .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+
+    .transactions{max-height:240px;overflow:auto;padding-right:8px}
+    .tx{display:flex;justify-content:space-between;padding:10px;border-radius:8px;margin-bottom:8px;background:linear-gradient(90deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005))}
+    .tx .left{display:flex;gap:8px;align-items:center}
+    .pill{font-size:12px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.02)}
+
+    .right{display:flex;flex-direction:column;gap:16px}
+    .goal{display:flex;flex-direction:column;gap:8px}
+    .progress{height:14px;background:rgba(255,255,255,0.03);border-radius:999px;overflow:hidden}
+    .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#60a5fa);width:0%}
+    canvas{width:100%;height:140px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));}
+
+    .api-box{font-family:monospace;font-size:12px;padding:10px;background:rgba(255,255,255,0.01);border-radius:8px;overflow:auto}
+
+    footer{grid-column:1/-1;text-align:center;color:var(--muted);margin-top:18px}
+
+    @media (max-width:980px){.app{grid-template-columns:1fr}.right{order:2}.main{order:1}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>PocketSave — Simple Savings App</h1>
+        <div class="sub">Track income, expenses and savings goals</div>
+      </div>
+      <div class="sub">Local storage only • Uses FRED API for demo</div>
+    </header>
+
+    <section class="card main">
+      <div class="balance card">
+        <div>
+          <div class="sub">Current Balance</div>
+          <div class="big" id="balance">₹0.00</div>
+          <div class="sub">Total income <span id="totalIncome">₹0.00</span> • Total expenses <span id="totalExpense">₹0.00</span></div>
+        </div>
+        <div style="margin-left:auto">
+          <div class="stats">
+            <div class="stat">
+              <div class="sub">Savings Rate</div>
+              <div class="num" id="savingsRate">0%</div>
+            </div>
+            <div class="stat">
+              <div class="sub">Transactions</div>
+              <div class="num" id="txCount">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <form id="txForm">
+          <div>
+            <label for="note">Note / Category</label>
+            <input id="note" placeholder="Salary, Groceries, Coffee..." required />
+          </div>
+          <div>
+            <label for="amount">Amount (₹)</label>
+            <input id="amount" type="number" step="0.01" placeholder="0.00" required />
+          </div>
+          <div>
+            <label for="type">Type</label>
+            <select id="type">
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </select>
+          </div>
+          <div style="grid-column:1/-1;display:flex;gap:8px;margin-top:8px">
+            <button class="btn" type="submit">Add Transaction</button>
+            <button type="button" id="clearBtn" class="btn secondary">Clear All</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Recent transactions</strong></div>
+          <div class="sub">newest first</div>
+        </div>
+        <div class="transactions" id="txList"></div>
+      </div>
+
+      <div class="card">
+        <strong>Mini chart — last 12 tx</strong>
+        <canvas id="txChart" width="600" height="160"></canvas>
+      </div>
+
+    </section>
+
+    <aside class="card right">
+      <div class="goal card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Savings goal</strong><div class="sub">Set a target and track progress</div></div>
+          <div id="goalAmountDisplay" class="sub">Target: —</div>
+        </div>
+        <input id="goalAmount" type="number" placeholder="Enter goal amount (₹)" />
+        <div class="progress"><i id="progressBar"></i></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="setGoal">Set Goal</button>
+          <button class="btn secondary" id="resetGoal">Reset</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>FRED API (category children)</strong><div class="sub">Demo fetch from the URL you provided</div></div>
+          <button class="btn secondary" id="fetchApiBtn">Fetch</button>
+        </div>
+        <pre class="api-box" id="apiResult">Click Fetch to load data from: https://api.stlouisfed.org/fred/category/children?category_id=13&api_key=abcdefghijklmnopqrstuvwxyz123456</pre>
+      </div>
+
+      <div class="card">
+        <strong>Quick actions</strong>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn" id="addSalary">+ ₹10,000 Salary</button>
+          <button class="btn secondary" id="addCoffee">- ₹120 Coffee</button>
+        </div>
+      </div>
+
+    </aside>
+
+    <footer>Made with ♥ — PocketSave • Data saved in your browser only</footer>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'pocketsave_transactions_v1';
+    const GOAL_KEY = 'pocketsave_goal_v1';
+
+    function loadTransactions(){
+      try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }catch(e){return []}
+    }
+    function saveTransactions(arr){ localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
+    function loadGoal(){ return JSON.parse(localStorage.getItem(GOAL_KEY)) || null }
+    function saveGoal(obj){ localStorage.setItem(GOAL_KEY, JSON.stringify(obj)); }
+
+    let transactions = loadTransactions();
+    let goal = loadGoal();
+
+    const balanceEl = document.getElementById('balance');
+    const totalIncomeEl = document.getElementById('totalIncome');
+    const totalExpenseEl = document.getElementById('totalExpense');
+    const savingsRateEl = document.getElementById('savingsRate');
+    const txCountEl = document.getElementById('txCount');
+    const txListEl = document.getElementById('txList');
+    const txForm = document.getElementById('txForm');
+    const amountInput = document.getElementById('amount');
+    const noteInput = document.getElementById('note');
+    const typeInput = document.getElementById('type');
+    const txChart = document.getElementById('txChart');
+    const progressBar = document.getElementById('progressBar');
+    const goalAmountInput = document.getElementById('goalAmount');
+    const goalAmountDisplay = document.getElementById('goalAmountDisplay');
+    const apiResult = document.getElementById('apiResult');
+
+    function formatMoney(v){
+      const n = Number(v) || 0;
+      return n.toLocaleString('en-IN', {style:'currency',currency:'INR',maximumFractionDigits:2});
+    }
+
+    function recalc(){
+      const income = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.amount),0);
+      const expense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.amount),0);
+      const balance = income - expense;
+      const savingsRate = income>0 ? Math.round(((income - expense)/income)*100) : 0;
+
+      balanceEl.textContent = formatMoney(balance);
+      totalIncomeEl.textContent = formatMoney(income);
+      totalExpenseEl.textContent = formatMoney(expense);
+      savingsRateEl.textContent = savingsRate + '%';
+      txCountEl.textContent = transactions.length;
+
+      if(goal && goal.amount>0){
+        goalAmountDisplay.textContent = 'Target: ' + formatMoney(goal.amount);
+        const progress = Math.min(100, Math.round((balance / goal.amount)*100));
+        progressBar.style.width = progress + '%';
+      } else {
+        goalAmountDisplay.textContent = 'Target: —';
+        progressBar.style.width = '0%';
+      }
+
+      renderTxList();
+      drawChart();
+    }
+
+    function renderTxList(){
+      txListEl.innerHTML = '';
+      const sorted = [...transactions].sort((a,b)=>b.time - a.time);
+      if(sorted.length===0){ txListEl.innerHTML = '<div class="sub">No transactions yet.</div>'; return }
+      for(const t of sorted){
+        const div = document.createElement('div'); div.className='tx';
+        const left = document.createElement('div'); left.className='left';
+        left.innerHTML = `<div style="width:10px;height:10px;border-radius:50%;background:${t.type==='income'?"green":"#ef4444"}"></div><div><div style="font-weight:600">${escapeHtml(t.note || '')}</div><div class="sub">${new Date(t.time).toLocaleString()}</div></div>`;
+        const right = document.createElement('div');
+        right.innerHTML = `<div style="text-align:right"><div class="pill">${t.type==='income'?'+':''}${formatMoney(t.amount)}</div><div style="margin-top:6px"><button class="btn secondary" data-id="${t.id}">Delete</button></div></div>`;
+        div.appendChild(left); div.appendChild(right);
+        txListEl.appendChild(div);
+      }
+      txListEl.querySelectorAll('button[data-id]').forEach(btn=>btn.addEventListener('click', e=>{
+        const id = e.currentTarget.dataset.id; transactions = transactions.filter(t=>t.id!==id); saveTransactions(transactions); recalc();
+      }));
+    }
+
+    function drawChart(){
+      const ctx = txChart.getContext('2d');
+      const w = txChart.width = txChart.clientWidth * devicePixelRatio;
+      const h = txChart.height = txChart.clientHeight * devicePixelRatio;
+      ctx.clearRect(0,0,w,h);
+
+      const last = [...transactions].slice(-12);
+      if(last.length===0){
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.font = `${12*devicePixelRatio}px sans-serif`;
+        ctx.fillText('No data to chart', 10*devicePixelRatio, 30*devicePixelRatio);
+        return;
+      }
+
+      const padding = 20*devicePixelRatio;
+      const max = Math.max(...last.map(t=>Math.abs(Number(t.amount))));
+      const barW = (w - padding*2) / last.length - 8*devicePixelRatio;
+
+      last.forEach((t,i)=>{
+        const val = Number(t.amount);
+        const barH = Math.abs(val) / max * (h - padding*2);
+        const x = padding + i * (barW + 8*devicePixelRatio);
+        const y = val>=0 ? (h - padding - barH) : (h - padding);
+        ctx.fillStyle = val>=0 ? 'rgba(16,185,129,0.9)' : 'rgba(239,68,68,0.9)';
+        ctx.fillRect(x, y, barW, barH);
+      });
+    }
+
+    function uid(){ return Math.random().toString(36).slice(2,9) + Date.now().toString(36) }
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"})[c]) }
+
+    txForm.addEventListener('submit', e=>{
+      e.preventDefault();
+      const note = noteInput.value.trim();
+      const amount = Number(amountInput.value) || 0;
+      const type = typeInput.value;
+      if(!note || amount<=0) return alert('Enter a note and an amount > 0');
+      const tx = { id: uid(), note, amount, type, time: Date.now() };
+      transactions.push(tx); saveTransactions(transactions); noteInput.value=''; amountInput.value=''; recalc();
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', ()=>{
+      if(confirm('Clear all transactions?')){ transactions=[]; saveTransactions(transactions); recalc(); }
+    });
+
+    document.getElementById('addSalary').addEventListener('click', ()=>{
+      const tx = { id: uid(), note: 'Salary', amount: 10000, type:'income', time: Date.now() };
+      transactions.push(tx); saveTransactions(transactions); recalc();
+    });
+    document.getElementById('addCoffee').addEventListener('click', ()=>{
+      const tx = { id: uid(), note: 'Coffee', amount: 120, type:'expense', time: Date.now() };
+      transactions.push(tx); saveTransactions(transactions); recalc();
+    });
+
+    document.getElementById('setGoal').addEventListener('click', ()=>{
+      const amt = Number(goalAmountInput.value) || 0;
+      if(amt<=0) return alert('Enter a goal amount > 0');
+      goal = { amount: amt, setAt: Date.now() };
+      saveGoal(goal); goalAmountInput.value=''; recalc();
+    });
+    document.getElementById('resetGoal').addEventListener('click', ()=>{
+      if(confirm('Reset savings goal?')){ goal = null; localStorage.removeItem(GOAL_KEY); recalc(); }
+    });
+
+    const API_URL = 'https://api.stlouisfed.org/fred/category/children?category_id=13&api_key=abcdefghijklmnopqrstuvwxyz123456&file_type=json';
+    document.getElementById('fetchApiBtn').addEventListener('click', async ()=>{
+      apiResult.textContent = 'Fetching...';
+      try{
+        const res = await fetch(API_URL);
+        if(!res.ok) throw new Error('Network response not ok ' + res.status);
+        const data = await res.json();
+        apiResult.textContent = JSON.stringify(data, null, 2);
+      }catch(err){ apiResult.textContent = 'Error fetching API: ' + err.message }
+    });
+
+    (function init(){
+      if(transactions.length===0){
+      }
+      if(goal){ goalAmountInput.value = ''; }
+      recalc();
+    })();
+
+    window.addEventListener('resize', ()=>drawChart());
+
+  </script>
+</body>
+</html>
