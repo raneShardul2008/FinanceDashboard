@@ -72,4 +72,5 @@ This project is open-source and free to use for personal and educational purpose
 
 ---
 
-Made with ♥ by [Your Name]
+Made with ♥ by [Tech Coders]
+
