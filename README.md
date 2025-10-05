@@ -68,4 +68,44 @@ This project is open-source and free to use for personal and educational purpose
 
 Made with ♥ by [Tech Coders]
 
+---
+
+1. Team Name: **Tech Coders**
+2. Team Members Name:
+            - **Chaitanya Shinde**
+            - **Shardul Rane**
+            - **Yash Salvi**
+            - **Prasann Kudale**
+3. Project Name: **Finance Dashboard**
+4. Project Abstract:
+      Managing personal finances can be complex and scattered across multiple tools, making it difficult for users to track  savings, loans, and EMIs efficiently. The Finance Dashboard is a web-based solution that unifies these functionalities into a single, easy-to-use platform.
+
+The application consists of three integrated modules:
+
+   1.**PocketSave** – Track income, expenses, and set savings goals.
+
+   2.**Loan Helper** – Calculate loan payments and generate amortization schedules.
+
+   3.**EMI Calculator** – Compute monthly EMI, total interest, and total payment with visual charts.
+
+All data is stored locally in the browser, ensuring privacy and security, while JavaScript and Chart.js provide real-time calculations and interactive visualizations. The Finance Dashboard empowers users to manage their finances efficiently, plan budgets, and make informed financial decisions, all within a single platform.
+
+5. Tech Stack:
+   **Frontend**:
+      -HTML5 & CSS3 – Structure and styling of the web app
+      -JavaScript – Logic for calculations, transactions, and interactivity
+
+   **Data & Storage**:
+      -Local Storage – Store user transactions and savings goals securely in the browser
+
+   **Visualization**:
+      -Chart.js – Display charts for savings, loan amortization, and EMI breakdowns
+
+   **Tools & Environment**:
+      -Web Browser – Runs entirely client-side, no backend required
+      -Code Editor – VS Code or any preferred editor
+
+6. Dataset Used:
+      -**PocketSave:** No external dataset; all transactions and savings goals are stored locally in the browser.
+      -**Loan Helper & EMI Calculator:** No external dataset; calculations are based on user-input values (loan amount, interest rate, tenure, etc.).
 
