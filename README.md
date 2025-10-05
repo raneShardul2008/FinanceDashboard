@@ -60,12 +60,6 @@ All apps run **locally in the browser** and do not require any backend or API ke
 
 ---
 
-## Screenshots
-
-*(Optional: Add screenshots of the dashboard and each app here)*
-
----
-
 ## License
 
 This project is open-source and free to use for personal and educational purposes.
@@ -73,4 +67,5 @@ This project is open-source and free to use for personal and educational purpose
 ---
 
 Made with ♥ by [Tech Coders]
+
 
